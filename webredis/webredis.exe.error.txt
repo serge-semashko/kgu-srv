@@ -1,0 +1,33 @@
+!!! 20.05.2018 11:05:14:763 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 20.05.2018 11:07:57:260 HTTP server> onerror —делана попытка выполнить операцию на объекте, не €вл€ющемс€ сокетом
+!!! 20.05.2018 11:07:57:261 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 20.05.2018 12:57:29:669 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 20.05.2018 17:21:45:212 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 20.05.2018 17:41:05:167 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 20.05.2018 17:45:47:227 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 20.05.2018 17:46:59:520 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 21.05.2018 11:17:56:323 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 23.05.2018 09:52:31:960 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 26.05.2018 18:09:01:230 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 26.05.2018 18:11:24:527 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 26.05.2018 19:19:54:167 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 26.05.2018 19:34:36:606 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 27.05.2018 16:13:33:236 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 27.05.2018 16:33:53:109 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 27.05.2018 16:38:11:490 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 27.05.2018 17:08:34:518 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 27.05.2018 17:09:12:729 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 27.05.2018 17:12:18:367 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 30.08.2018 10:25:35:232 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 30.08.2018 10:25:35:257 HTTP server> onerror »ли приложение не вызвало WSAStartup, или произошла ошибка в WSAStartup
+!!! 30.08.2018 10:25:35:282 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 30.08.2018 10:25:35:283 HTTP server> onerror »ли приложение не вызвало WSAStartup, или произошла ошибка в WSAStartup
+!!! 16.09.2018 20:01:55:673 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 16.09.2018 20:03:47:558 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 16.09.2018 20:09:41:277 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 16.09.2018 20:11:05:303 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 18.09.2018 00:23:14:353 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 18.09.2018 09:13:11:768 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 18.09.2018 17:02:30:137 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 19.09.2018 10:23:42:537 HTTP SERVER Error on ACCEPT @@@@@@ 
+!!! 19.09.2018 10:25:02:011 HTTP SERVER Error on ACCEPT @@@@@@ 
