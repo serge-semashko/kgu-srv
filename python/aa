@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "kgu_opc_oa_srv.py", line 19, in <module>
+    from opcua import Server
+  File "c:\Anaconda3\lib\site-packages\opcua\__init__.py", line 9, in <module>
+    from opcua.client.client import Client
+  File "c:\Anaconda3\lib\site-packages\opcua\client\client.py", line 21, in <module>
+    from opcua.common.structures import load_type_definitions, load_enums
+  File "c:\Anaconda3\lib\site-packages\opcua\common\structures.py", line 16, in <module>
+    from lxml import objectify
+ImportError: DLL load failed while importing objectify: Не найден указанный модуль.
