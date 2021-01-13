@@ -124,11 +124,15 @@ object HTTPSRVForm: THTTPSRVForm
       Width = 1026
       Height = 108
       Align = alBottom
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
       Lines.Strings = (
         'Memo1')
+      ParentFont = False
       TabOrder = 5
-      ExplicitLeft = 0
-      ExplicitTop = 86
     end
   end
   object Memo2: TMemo
@@ -139,13 +143,11 @@ object HTTPSRVForm: THTTPSRVForm
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -15
+    Font.Height = -11
     Font.Name = 'MS Sans Serif'
     Font.Style = []
     ParentFont = False
     TabOrder = 1
-    ExplicitLeft = -1
-    ExplicitTop = 205
   end
   object Memobody: TMemo
     Left = 0
@@ -153,8 +155,14 @@ object HTTPSRVForm: THTTPSRVForm
     Width = 1028
     Height = 244
     Align = alClient
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
     Lines.Strings = (
       'Memobody')
+    ParentFont = False
     TabOrder = 2
   end
   object StatusBar1: TStatusBar
@@ -166,19 +174,19 @@ object HTTPSRVForm: THTTPSRVForm
       item
         Bevel = pbRaised
         Text = '1'
-        Width = 250
+        Width = 300
       end
       item
         Text = '2'
-        Width = 250
+        Width = 300
       end
       item
         Text = '3'
-        Width = 250
+        Width = 300
       end
       item
         Text = '4'
-        Width = 250
+        Width = 300
       end>
   end
   object ApplicationEvents1: TApplicationEvents
@@ -206,7 +214,7 @@ object HTTPSRVForm: THTTPSRVForm
     end
   end
   object restart_apptmr: TTimer
-    Interval = 600000
+    Interval = 6000000
     OnTimer = restart_apptmrTimer
     Left = 540
     Top = 128

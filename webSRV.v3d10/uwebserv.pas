@@ -300,11 +300,11 @@ begin
           idhhttp_mac30:=tidhttp.Create(self);
           tmpstr := idhhttp_mac30.get(URLED.Text);
           mac30_data := system.copy(tmpstr, pos('{', tmpstr), length(tmpstr) - 1);
-          StatusBar1.Panels[0].Text :=formatdatetime('mac30 HH:NN:SS<',now);
+          StatusBar1.Panels[0].Text :='mac30 '+formatdatetime('HH:NN:SS<',now);
           end
         Except
               On E: EIdException do
-                  StatusBar1.Panels[0].Text :=formatdatetime('mac30 HH:NN:SS err',now);
+                  StatusBar1.Panels[0].Text :='Mac30 '+formatdatetime(' HH:NN:SS err',now);
     end;
     mac30Timer.Enabled:=true;;
     idhhttp_mac30.Free;
@@ -1027,7 +1027,7 @@ var
   FullProgPath: PansiChar;
 begin
   FullProgPath := PansiChar(Application.ExeName);
-   // ShowWindow(Form1.handle,SW_HIDE);
+  /// ShowWindow(Form1.handle,SW_HIDE);
   WinExec_((Application.ExeName), SW_SHOW); // Or better use the CreateProcess function
 
   Application.Terminate; // or: Close;

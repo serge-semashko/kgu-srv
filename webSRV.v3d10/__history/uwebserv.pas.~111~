@@ -1,4 +1,4 @@
-//4
+﻿//4
 unit uwebserv;
 
 interface
@@ -1027,7 +1027,7 @@ var
   FullProgPath: PansiChar;
 begin
   FullProgPath := PansiChar(Application.ExeName);
-   // ShowWindow(Form1.handle,SW_HIDE);
+  /// ShowWindow(Form1.handle,SW_HIDE);
   WinExec_((Application.ExeName), SW_SHOW); // Or better use the CreateProcess function
 
   Application.Terminate; // or: Close;
