@@ -75,7 +75,7 @@ type
   end;
 
 var
-  PortNum: integer = 9092;
+  PortNum: integer = 9090;
   linenum : integer = 0;
   textfromjson: ansistring = '[]';
   currentData: ansistring = '{}';
@@ -879,8 +879,9 @@ begin
 
     if (linenum mod 5 )=0  then begin
        if length(resrecord)>0 then
-
-        histtext:=histtext+','+resrecord;
+        if length(histtext)>0
+          then histtext:=histtext+',';
+        histtext:=histtext+resrecord ;
         JSON_last_data :=resrecord;
         i2 :=1;
         i1 :=(length(histtext)-i2) div length(resrecord);
@@ -1131,7 +1132,7 @@ initialization
   end
   else
   begin
-    textfromJson := '[]';
+    textfromJson := '';
     histtext :='';
   end;
   writetimelog('loadhist time '+floattostr((now-sttime)*1000));
