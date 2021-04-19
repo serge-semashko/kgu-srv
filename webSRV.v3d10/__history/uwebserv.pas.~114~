@@ -581,7 +581,6 @@ procedure writeWebFiles(filename, filedata:ansistring);
 var
  ff:tfilestream;
 begin
-  try
       if length(filedata)=0 then exit;
 
       if fileexists(filename) then
@@ -589,9 +588,6 @@ begin
       ff := tfilestream.Create(filename, fmcreate or fmOpenWrite or fmsharedenynone);
         ff.Write(filedata[1], length(filedata));
       ff.Free;
-  finally
-
-  end;
 
 end;
 
@@ -602,12 +598,10 @@ begin
       writeWebFiles('d:\www\last_data30.dat ', mac30_data);
       writeWebFiles('d:\www\mob\last_data30.dat ', mac30_data);
       writeWebFiles('d:\www\kguv3\last_data30.dat ',mac30_data);
-      writeWebFiles('d:\www\kgu4k\last_data30.dat ',mac30_data);
 
      writeWebFiles('d:\www\mob\JSON_last_data.dat', resrecord);
       writeWebFiles('d:\www\JSON_last_data.dat', resrecord);
       writeWebFiles('d:\www\kguv3\JSON_last_data.dat', resrecord);
-      writeWebFiles('d:\www\kgu4k\JSON_last_data.dat', resrecord);
 
 end;
 procedure WriteHistFile();
@@ -621,7 +615,6 @@ begin
       writeWebFiles('d:\www\hist.zip',zipdata);
       writeWebFiles('d:\www\mob\hist.zip', zipdata);
       writeWebFiles('d:\www\kguv3\hist.zip', zipdata);
-      writeWebFiles('d:\www\kgu4k\hist.zip', zipdata);
 
 end;
 

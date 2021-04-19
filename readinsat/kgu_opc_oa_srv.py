@@ -36,7 +36,7 @@ def read_gamma100():
         # print("got root node")
         
         except Exception as e:
-            print(e)
+            print('Gamma connect error'+str(e))
             time.sleep(4)
     
     # objects = client.get_objects_node()
@@ -44,17 +44,21 @@ def read_gamma100():
         try:
             struct = client.get_node("ns=1;s=Recalculated.All_devices.json_info")
             
-            # print(str(struct))
+            
             before = struct.get_value()
+            print('before '+str(before))
             bef1 = json.loads(before)
+            print(str(bef1))
             for el in bef1:
-                gamma_data[el]=str(bef1[el]['value'])
+                elval = str(bef1[el]['value']).replace(',','.')
+                print(el+' '+elval)    
+                gamma_data[el]=float(elval)
                 
-            print(str(gamma_data))    
         except Exception as e:
+            print('Gamma get data error'+str(e))
             time.sleep(5)
-        print(str(gamma_data))
-        time.sleep(10)
+        print('!!!!gamma_data '+str(gamma_data))
+        time.sleep(1)
 
 
 # https://python-opcua.readthedocs.io/en/latest/
@@ -97,7 +101,7 @@ all_data = { "k1td1" :'NaN', "k1td2" : 'NaN', "k1td3" : 'NaN', "k1pg" : 'NaN', "
 orignames = ('01LEC01CT022 01LEC01CT021 01LEC02CT001 01LEC02CT002 01LEC02CT003 01LEC02CT004'+
 ' 01LEC02CT005 01LEC02CT006 01LEC01CT181 01LEC01CT191 01LEC02CT201 01LEC02CT211'+
 ' 01LEC11CT181 01LEC11CT191 01LEC12CT201 01LEC12CT211 01LEC01CT007 01LEC01CT008 01LEC01CT009 01LCM11CT001'+
-' 01LEC01CT011 01LEC01CT012 01LEC01CT013 '+
+' 01LEC01CT011 01LEC01CT012 01LEC01CT013 01LEC01CT014 '+
 ' 01LCM31CL001 01LCM21CL001 01LCM22CL001 01LCM11CL001 00LCM11CL001 00LCM51CL001'+
 ' 01LMP01DS001 01LMP02DS001 01LMP03DS001 01LMN01DS001'+
 ' 00LCM01CP001 00LEC01CP001 01LEC01CP005 00LWP01CP005 01LEC01CP005 01LEC02CP001 01LEC01CP001 01LCM11CP001 01LEC02CP002 01LEC02CP004 01LEC02CP006 01LMP01CP003 01LMP02CP003 01LMP03CP003 01LEC02CP003'+

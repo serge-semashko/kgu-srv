@@ -581,7 +581,6 @@ procedure writeWebFiles(filename, filedata:ansistring);
 var
  ff:tfilestream;
 begin
-  try
       if length(filedata)=0 then exit;
 
       if fileexists(filename) then
@@ -589,9 +588,6 @@ begin
       ff := tfilestream.Create(filename, fmcreate or fmOpenWrite or fmsharedenynone);
         ff.Write(filedata[1], length(filedata));
       ff.Free;
-  finally
-
-  end;
 
 end;
 
