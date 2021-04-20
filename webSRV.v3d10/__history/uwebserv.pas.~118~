@@ -1,4 +1,4 @@
-//4
+ï»¿//4
 unit uwebserv;
 
 interface
@@ -8,8 +8,8 @@ uses
   Dialogs, StdCtrls, Buttons, ExtCtrls, HTTPSend, ulkjson, blcksock, winsock,
   Synautil, strutils, AppEvnts, Menus, inifiles, das_const,
      zlibexapi,ZLIBEX, IdBaseComponent, IdComponent, IdTCPConnection,
-  IdTCPClient, IdHTTP;
-
+  IdTCPClient, IdHTTP, Vcl.ComCtrls, IdException;
+//
 type
   THTTPSRVForm = class(TForm)
     Panel1: TPanel;
@@ -24,11 +24,13 @@ type
     kgu1freqtxt: TStaticText;
     kgu2stdtxt: TStaticText;
     kgu2freqtxt: TStaticText;
-    tmr1: TTimer;
+    restart_apptmr: TTimer;
     Memo1: TMemo;
-    Timer1: TTimer;
-    Timer2: TTimer;
-    IdHTTPmac30: TIdHTTP;
+    writewebfilesTimer: TTimer;
+    insat_timer: TTimer;
+    mac30Timer: TTimer;
+    StatusBar1: TStatusBar;
+    tangoTimer: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure SpeedButton1Click(Sender: TObject);
     procedure SpeedButton2Click(Sender: TObject);
@@ -38,8 +40,10 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Restore1Click(Sender: TObject);
     procedure Restart1Click(Sender: TObject);
-    procedure tmr1Timer(Sender: TObject);
-    procedure Timer2Timer(Sender: TObject);
+    procedure restart_apptmrTimer(Sender: TObject);
+    procedure insat_timerTimer(Sender: TObject);
+    procedure mac30TimerTimer(Sender: TObject);
+    procedure tangoTimerTimer(Sender: TObject);
   private
     { Private declarations }
   protected
@@ -67,19 +71,21 @@ type
     constructor Create(hsock: tSocket);
     destructor Destroy; override;
     procedure Execute; override;
-    function ProcessHttpRequest(Request, URI: string): integer;
+    function ProcessHttpRequest(Request, URI: ansistring): integer;
   end;
 
 var
   PortNum: integer = 9090;
   linenum : integer = 0;
-  textfromjson: string = '[]';
-  currentData: string = '{}';
-  testjson: string = '[{"time":"18:57:40","sbrkgu1":0,"sbrkgu2":0,"k1t6":272.73,"k1t12":295.05,"k1t13":288.41,"k1dt5t6":12.15,"k1dt3t4":2.73,"k1sbr":0,' + '"k1vanna":0,"k1bo1":0.37,"k1bo2":0,"k2t6":108.89,"k2t12":211.58,"k2t13":286.86,"k2dt5t6":-2.02,"k2dt3t4":-1.91,"k2sbr":0,"k2vanna":0,' + '"k2bo1":0,"k2bo2":58.79}]';
+  textfromjson: ansistring = '[]';
+  currentData: ansistring = '{}';
+  testjson: ansistring = '[{"time":"18:57:40","sbrkgu1":0,"sbrkgu2":0,"k1t6":272.73,"k1t12":295.05,"k1t13":288.41,"k1dt5t6":12.15,"k1dt3t4":2.73,"k1sbr":0,' + '"k1vanna":0,"k1bo1":0.37,"k1bo2":0,"k2t6":108.89,"k2t12":211.58,"k2t13":286.86,"k2dt5t6":-2.02,"k2dt3t4":-1.91,"k2sbr":0,"k2vanna":0,' + '"k2bo1":0,"k2bo2":58.79}]';
 
 var
 //sqlite
 //*counters variables
+  mac30_data: ansistring ='';
+
   FullProgPath: PansiChar;
   need_terminate: boolean = false;
   kgu_counter_com_number: array[0..1] of char = (#6, #7);
@@ -98,14 +104,17 @@ var
   HTTP: THTTPSend = nil;
   HTTPsrv: TTCPHttpDaemon;
   HTTPSRVFORM: THTTPSRVFORM;
-  URL, URLInsat: string;
-  insat_data: string = '';
-  current_data :string ='{}';
-  json_last_data :string ='{}';
+  URL, URLInsat: ansistring;
+  insat_data: ansistring = '';
+  booster_data: ansistring = '';
+  current_data :ansistring ='{}';
+  json_last_data :ansistring ='{}';
   Histjson: tstringlist;
+  Histtext: ansistring;
   subobj: tlkjsonobject;
   LastUpdate: double = 0;
    hexmap : array[0..15] of ansichar = ('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F');
+   zipdata :ansistring;
 //*
 
 implementation
@@ -114,6 +123,7 @@ uses
   Unit1, shellapi, i7000, i7000u, dcon_pc;
 
 {$R *.dfm}
+
 type
   PRaiseFrame = ^TRaiseFrame;
 
@@ -122,7 +132,32 @@ type
     ExceptAddr: Pointer;
     ExceptObject: TObject;
     ExceptionRecord: PExceptionRecord;
+
   end;
+procedure WinExec_(const ACmdLine: String; const ACmdShow: UINT = SW_SHOWNORMAL);
+var
+  SI: TStartupInfo;
+  PI: TProcessInformation;
+  CmdLine: String;
+begin
+  Assert(ACmdLine <> '');
+
+  CmdLine := ACmdLine;
+  UniqueString(CmdLine);
+
+  FillChar(SI, SizeOf(SI), 0);
+  FillChar(PI, SizeOf(PI), 0);
+  SI.cb := SizeOf(SI);
+  SI.dwFlags := STARTF_USESHOWWINDOW;
+  SI.wShowWindow := ACmdShow;
+
+  SetLastError(ERROR_INVALID_PARAMETER);
+  {$WARN SYMBOL_PLATFORM OFF}
+  Win32Check(CreateProcess(nil, PChar(CmdLine), nil, nil, False, CREATE_DEFAULT_ERROR_MODE {$IFDEF UNICODE}or CREATE_UNICODE_ENVIRONMENT{$ENDIF}, nil, nil, SI, PI));
+  {$WARN SYMBOL_PLATFORM ON}
+  CloseHandle(PI.hThread);
+  CloseHandle(PI.hProcess);
+end;
 function compress2send(instr:ansistring):ansistring;
 var
    tmpstr : ansistring;
@@ -133,7 +168,7 @@ begin
      getmem(pch,10000000);
 
     tmpstr := ZCompressStr(INSTR,zcLevel3);
-    Assert(length(tmpstr)<=3000000,'Ð¡Ñ‚Ñ€Ð¾ÐºÐ° Ð¿Ð¾ÑÐ»Ðµ ÐºÐ¾Ð¼Ð¿Ñ€ÐµÑÑÐ¸Ð¸ Ð±Ð¾Ð»ÑŒÑˆÐµ 3Ð¼Ð±');
+    Assert(length(tmpstr)<=3000000,'Ð ÐŽÐ¡â€šÐ¡Ð‚Ð Ñ•Ð Ñ”Ð Â° Ð Ñ—Ð Ñ•Ð¡ÐƒÐ Â»Ð Âµ Ð Ñ”Ð Ñ•Ð Ñ˜Ð Ñ—Ð¡Ð‚Ð ÂµÐ¡ÐƒÐ¡ÐƒÐ Ñ‘Ð Ñ‘ Ð Â±Ð Ñ•Ð Â»Ð¡ÐŠÐ¡â‚¬Ð Âµ 3Ð Ñ˜Ð Â±');
     result := '';
     FillChar(pch^,10000000,0);
     for i1 := 1 to length(tmpstr) do begin
@@ -154,36 +189,36 @@ begin
 end;
 
 
-function GenerateOutText(inlist: tstringlist): string;
+function GenerateOutText(inlist: ansistring): ansistring;
 var
   i: integer;
-  str1: string;
+  str1: ansistring;
 begin
 //  writeTimeLog('generate begin');
 
-  str1 := '[';
-  for i := 0 to inlist.Count - 1 do
-    str1 := str1 + inlist[i] + ', ';
-  str1 := str1 + ']';
+//  str1 := '[';
+//  for i := 0 to inlist.Count - 1 do
+//    str1 := str1 + inlist[i] + ', ';
+//  str1 := str1 + ']';
 //  writeTimeLog('generate end');
-  result := str1;
+  result := '['+inlist+']';
 end;
 (*
 procedure THTTPSRVForm.IconMouse(var Msg: TMessage);
 var
   p: tpoint;
 begin
-  GetCursorPos(p); // Çàïîìèíàåì êîîðäèíàòû êóðñîðà ìûøè
-  case Msg.LParam of  // Ïðîâåðÿåì êàêàÿ êíîïêà áûëà íàæàòà
-    WM_LBUTTONUP, WM_LBUTTONDBLCLK: {Äåéñòâèÿ, âûïîëíÿåìûé ïî îäèíàðíîìó èëè äâîéíîìó ùåë÷êó ëåâîé êíîïêè ìûøè íà çíà÷êå. Â íàøåì ñëó÷àå ýòî ïðîñòî àêòèâàöèÿ ïðèëîæåíèÿ}
+  GetCursorPos(p); // Ð—Ð°Ð¿Ð¾Ð¼Ð¸Ð½Ð°ÐµÐ¼ ÐºÐ¾Ð¾Ñ€Ð´Ð¸Ð½Ð°Ñ‚Ñ‹ ÐºÑƒÑ€ÑÐ¾Ñ€Ð° Ð¼Ñ‹ÑˆÐ¸
+  case Msg.LParam of  // ÐŸÑ€Ð¾Ð²ÐµÑ€ÑÐµÐ¼ ÐºÐ°ÐºÐ°Ñ ÐºÐ½Ð¾Ð¿ÐºÐ° Ð±Ñ‹Ð»Ð° Ð½Ð°Ð¶Ð°Ñ‚Ð°
+    WM_LBUTTONUP, WM_LBUTTONDBLCLK: {Ð”ÐµÐ¹ÑÑ‚Ð²Ð¸Ñ, Ð²Ñ‹Ð¿Ð¾Ð»Ð½ÑÐµÐ¼Ñ‹Ð¹ Ð¿Ð¾ Ð¾Ð´Ð¸Ð½Ð°Ñ€Ð½Ð¾Ð¼Ñƒ Ð¸Ð»Ð¸ Ð´Ð²Ð¾Ð¹Ð½Ð¾Ð¼Ñƒ Ñ‰ÐµÐ»Ñ‡ÐºÑƒ Ð»ÐµÐ²Ð¾Ð¹ ÐºÐ½Ð¾Ð¿ÐºÐ¸ Ð¼Ñ‹ÑˆÐ¸ Ð½Ð° Ð·Ð½Ð°Ñ‡ÐºÐµ. Ð’ Ð½Ð°ÑˆÐµÐ¼ ÑÐ»ÑƒÑ‡Ð°Ðµ ÑÑ‚Ð¾ Ð¿Ñ€Ð¾ÑÑ‚Ð¾ Ð°ÐºÑ‚Ð¸Ð²Ð°Ñ†Ð¸Ñ Ð¿Ñ€Ð¸Ð»Ð¾Ð¶ÐµÐ½Ð¸Ñ}
       begin
-//        ShowWindow(Application.Handle, SW_SHOW); // Âîññòàíàâëèâàåì êíîïêó ïðîãðàììû
-        ShowWindow(Handle, SW_SHOW); // Âîññòàíàâëèâàåì îêíî ïðîãðàììû
+//        ShowWindow(Application.Handle, SW_SHOW); // Ð’Ð¾ÑÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ ÐºÐ½Ð¾Ð¿ÐºÑƒ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ñ‹
+        ShowWindow(Handle, SW_SHOW); // Ð’Ð¾ÑÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ Ð¾ÐºÐ½Ð¾ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ñ‹
       end;
-    WM_RBUTTONUP: {Äåéñòâèÿ, âûïîëíÿåìûé ïî îäèíàðíîìó ùåë÷êó ïðàâîé êíîïêè ìûøè}
+    WM_RBUTTONUP: {Ð”ÐµÐ¹ÑÑ‚Ð²Ð¸Ñ, Ð²Ñ‹Ð¿Ð¾Ð»Ð½ÑÐµÐ¼Ñ‹Ð¹ Ð¿Ð¾ Ð¾Ð´Ð¸Ð½Ð°Ñ€Ð½Ð¾Ð¼Ñƒ Ñ‰ÐµÐ»Ñ‡ÐºÑƒ Ð¿Ñ€Ð°Ð²Ð¾Ð¹ ÐºÐ½Ð¾Ð¿ÐºÐ¸ Ð¼Ñ‹ÑˆÐ¸}
       begin
-        SetForegroundWindow(Handle);                   // Âîññòàíàâëèâàåì ïðîãðàììó â êà÷åñòâå ïåðåäíåãî îêíà
-        PopupMenu1.Popup(p.X, p.Y);  // Çàñòàâëÿåì âñïëûòü òîò ñàìûé TPopUp î êîòîðîì ÿ ãîâîðèë ÷óòü ðàíüøå
+        SetForegroundWindow(Handle);                   // Ð’Ð¾ÑÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ñƒ Ð² ÐºÐ°Ñ‡ÐµÑÑ‚Ð²Ðµ Ð¿ÐµÑ€ÐµÐ´Ð½ÐµÐ³Ð¾ Ð¾ÐºÐ½Ð°
+        PopupMenu1.Popup(p.X, p.Y);  // Ð—Ð°ÑÑ‚Ð°Ð²Ð»ÑÐµÐ¼ Ð²ÑÐ¿Ð»Ñ‹Ñ‚ÑŒ Ñ‚Ð¾Ñ‚ ÑÐ°Ð¼Ñ‹Ð¹ TPopUp Ð¾ ÐºÐ¾Ñ‚Ð¾Ñ€Ð¾Ð¼ Ñ Ð³Ð¾Ð²Ð¾Ñ€Ð¸Ð» Ñ‡ÑƒÑ‚ÑŒ Ñ€Ð°Ð½ÑŒÑˆÐµ
         PostMessage(Handle, WM_NULL, 0, 0);
       end;
   end;
@@ -204,8 +239,8 @@ end;
 procedure THTTPSRVForm.FormCreate(Sender: TObject);
 var
   ff: tfilestream;
-  str1: string;
-  objFileName: string;
+  str1: ansistring;
+  objFileName: ansistring;
   strlist: tstringlist;
   i1,wret,kgunum,chnum : integer;
 begin
@@ -213,7 +248,7 @@ begin
 
 //  Ic(1, Application.Icon);  // ????????? ?????? ? ????
   writetimelog('wait start' + IntToStr(trunc((now - StartTime) * 24 * 3600)));
-  while (now - StartTime) * 24 * 3600 < 13 do
+  while (now - StartTime) * 24 * 3600 < 15 do
     application.ProcessMessages;
   writetimelog('wait end ' + IntToStr(trunc((now - StartTime) * 24 * 3600)));
     writeTimeLog('init  counters');
@@ -246,12 +281,34 @@ begin
     str1:=strlist.Text;
     jsonobj := TlkJSON.ParseText(str1) as TlkJSONobject;
   end else *)
-  timer1.OnTimer(self);
-  timer2.OnTimer(self);
 //  application.Minimize;
 //  Ic(1, Application.Icon);  // ????????? ?????? ? ????
 //  application.Minimize;
 
+end;
+
+procedure THTTPSRVForm.mac30TimerTimer(Sender: TObject);
+var
+HTTP : THTTPSend;
+i : integer;
+str1, tmpstr : ansistring;
+idhhttp_mac30:tidhttp;
+begin
+  mac30Timer.Enabled:=false;
+  StatusBar1.Panels[0].Text :=formatdatetime('mac30 HH:NN:SS>',now);
+    try
+         begin
+          idhhttp_mac30:=tidhttp.Create(self);
+          tmpstr := idhhttp_mac30.get(URLED.Text);
+          mac30_data := system.copy(tmpstr, pos('{', tmpstr), length(tmpstr) - 1);
+          StatusBar1.Panels[0].Text :='mac30 '+formatdatetime('HH:NN:SS<',now);
+          end
+        Except
+              On E: EIdException do
+                  StatusBar1.Panels[0].Text :='Mac30 '+formatdatetime(' HH:NN:SS err',now);
+    end;
+    mac30Timer.Enabled:=true;;
+    idhhttp_mac30.Free;
 end;
 
 constructor TTCPHttpDaemon.Create;
@@ -329,7 +386,7 @@ var
   b: byte;
   timeout: integer;
   s: string;
-  method, uri, protocol: string;
+  method, uri, protocol: ansistring;
   size: integer;
   x, n: integer;
   resultcode: integer;
@@ -395,11 +452,11 @@ begin
   Sock.SendBuffer(OutputData.Memory, OutputData.Size);
 end;
 
-function TTCPHttpThrd.ProcessHttpRequest(Request, URI: string): integer;
+function TTCPHttpThrd.ProcessHttpRequest(Request, URI: ansistring): integer;
 var
   l: TStringlist;
-  resp: string;
-  stmp, jreq: string;
+  resp: ansistring;
+  stmp, jreq: ansistring;
   amppos: integer;
 begin
   LastIncomeConnection := now;
@@ -447,28 +504,28 @@ var
   Data: TlkJSONobject;
   jcurdata: TlkJSONobject;
   t_id, t_vc, t_vn, t_vdn, t_vv, t_vt, t_vs: tlkjsonlist;
-  jtype: string;
-  jsonstr: string;
+  jtype: ansistring;
+  jsonstr: ansistring;
   i, id: integer;
   r1, r2: double;
 //  rl : tstringlist;
   offset, position, h, g: integer;
-  s: string;
-  str1 :string;
+  s: ansistring;
+  str1 :ansistring;
   ff: tfilestream;
   js: tlkjsonstring;
 //  jn,jval :tlkjsonnumber;
   rlist: tlkjsonlist;
   jnull: tlkjsonnull;
-  r: array[0..255] of string;
+  r: array[0..255] of ansistring;
   pointpos: integer;
-  resrecord: string;
+  resrecord: ansistring;
   wret: word;
   dtime: double;
   systime: _systemtime;
   chnum, i1, i2, i3: integer;
-  Backup_history: string;
-  cnt_str : string;
+  Backup_history: ansistring;
+  cnt_str : ansistring;
   procedure read_counter_and_reset(kgunum: integer; chnum: integer);
   var
     i1: integer;
@@ -516,98 +573,72 @@ var
     end;
   end;
 
-  procedure AddVarToRecord(varname, varval: string);
+  procedure AddVarToRecord(varname, varval: ansistring);
   begin
     resrecord := resrecord + '"' + varname + '" : ' + varval + ', ';
   end;
 
-
-procedure writefiles();
-procedure writeWebFiles(filename, filedata:string);
+procedure writeWebFiles(filename, filedata:ansistring);
 var
  ff:tfilestream;
 begin
+  try
+      if length(filedata)=0 then exit;
+
       if fileexists(filename) then
         deletefile(filename);
       ff := tfilestream.Create(filename, fmcreate or fmOpenWrite or fmsharedenynone);
-      ff.Write(filedata[1], length(filedata));
+        ff.Write(filedata[1], length(filedata));
       ff.Free;
+  finally
+
+  end;
 
 end;
+procedure writecurrentData(dirname:string);
 begin
+    writeWebFiles(dirname+'\last_data30.dat', mac30_data);
+    writeWebFiles(dirname+'\JSON_last_data.dat', resrecord);
+    writeWebFiles(dirname+'\'+ 'hist.zip', zipdata);
 
-      if fileexists(extractfilepath(application.ExeName) + '\history.json') then
-        deletefile(extractfilepath(application.ExeName) + '\history.json');
-      ff := tfilestream.Create(extractfilepath(application.ExeName) + '\history.json', fmcreate or fmOpenWrite or fmsharedenynone);
+end;
 
-      ff.Write(textfromjson[1], length(textfromjson));
-      ff.Free;
+procedure writecurrentfiles();
+var
+ lstr: integer;
+begin
+      writeWebFiles('d:\www\last_data30.dat ', mac30_data);
+      writeWebFiles('d:\www\mob\last_data30.dat ', mac30_data);
+      writeWebFiles('d:\www\kguv3\last_data30.dat ',mac30_data);
+      writeWebFiles('d:\www\kgu4k\last_data30.dat ',mac30_data);
+
+      writeWebFiles('d:\www\mob\JSON_last_data.dat', resrecord);
+      writeWebFiles('d:\www\JSON_last_data.dat', resrecord);
+      writeWebFiles('d:\www\kguv3\JSON_last_data.dat', resrecord);
+      writeWebFiles('d:\www\kgu4k\JSON_last_data.dat', resrecord);
+
+end;
+procedure WriteHistFile();
+
+begin
+      writewebfiles(extractfilepath(application.ExeName) + '\history.json',textfromjson);
       Backup_history := extractfilepath(application.ExeName) + '\history.' + formatDateTime('yyyy__mm_dd_hh', now);
-
-      if fileexists(Backup_history) then
-        deletefile(Backup_history);
-      ff := tfilestream.Create(Backup_history, fmcreate or fmOpenWrite or fmsharedenynone);
-      ff.Write(textfromjson[1], length(textfromjson));
-      ff.Free;
-
-      Backup_history := 'd:\www\mob\JSON_last_data.js';
-      if fileexists(Backup_history) then
-        deletefile(Backup_history);
-      ff := tfilestream.Create(Backup_history, fmcreate or fmOpenWrite or fmsharedenynone);
-      ff.Write(str1[1], length(str1));
-      ff.Free;
-      writeWebFiles('d:\www\mob\JSON_last_data.js', str1);
-      writeWebFiles('d:\www\JSON_last_data.js', str1);
-      writeWebFiles('d:\www\kguv2\JSON_last_data.js', str1);
-
-      writeWebFiles('d:\www\last_data30.js', jsonstr);
-      writeWebFiles('d:\www\mob\last_data30.js', jsonstr);
-      writeWebFiles('d:\www\kguv2\last_data30.js', jsonstr);
-
-
-      writeWebFiles('d:\www\hist.zip', compress2send(textfromjson));
-      writeWebFiles('d:\www\mob\hist.zip', compress2send(textfromjson));
-      writeWebFiles('d:\www\kguv2\hist.zip', compress2send(textfromjson));
-
-
+      writewebfiles(Backup_history,textfromjson);
+      zipdata := compress2send(textfromjson);
+      writeWebFiles('d:\www\hist.zip',zipdata);
+      writeWebFiles('d:\www\mob\hist.zip', zipdata);
+      writeWebFiles('d:\www\kguv3\hist.zip', zipdata);
+      writeWebFiles('d:\www\kgu4k\hist.zip', zipdata);
 
 end;
 
 
 begin
   LastUpdate := now;
-  timer1.Enabled := false;
-//  if (now - starttime) * 24 * 3600 > 2600  then
-//  begin
-//    writetimelog('#### restart application/ Reason: 1 hour uptime ############################################');
-//
-//    FullProgPath := PansiChar(Application.ExeName);
-//    need_terminate := true;
-//    WinExec(FullProgPath, SW_SHOW);
-//    Application.Terminate;
-//    exit;
-//  end;
-//  if ((now - LastIncomeConnection) * 24 * 60 * 60 > 120) then
-//  begin
-//    writetimelog('#### restart application reason: No income conenction for 5 min ############################################');
-//    need_terminate := true;
-//    FullProgPath := PansiChar(Application.ExeName);
-//
-//    WinExec(FullProgPath, SW_SHOW);
-//
-//    Application.Terminate;
-//    exit;
-//  end;
+//  timer1.Enabled := false;
   cnt_str := '';
-  caption := formatDateTime('dd/mm/yyyy HH:NN:SS', now) + formatDateTime(' Ñòàðò:dd/mm/yyyy HH:NN:SS', startTime);
-//  for chnum := 0 to 7 do
-//    read_counter_and_reset(0, chnum);
-//  for chnum := 0 to 7 do
-//    read_counter_and_reset(1, chnum);
+  caption := formatDateTime('dd/mm/yyyy HH:NN:SS', now) + formatDateTime(' Ð¡Ñ‚Ð°Ñ€Ñ‚:dd/mm/yyyy HH:NN:SS', startTime);
   nsum := nsum + 1;
-  while memo1.Lines.Count >10 do memo1.Lines.Delete(0);
-  memo1.Lines.Add(cnt_str);
-//  writetimelog(cnt_str);
   kgu1freqtxt.Caption := format('Freq = %d', [skgu_freq[0, 1] * 2]);
   kgu2freqtxt.Caption := format('Freq = %d', [skgu_freq[0, 1] * 2]);
 
@@ -622,23 +653,10 @@ begin
   resrecord := '{';
     FormatSettings.DecimalSeparator := '.';
 
-  if http <> nil then
-  begin
-    http.Free;
-    http := nil;
-  end;
-  HTTP := THTTPSend.Create;
-//  rl:=tstringlist.Create;
-  urled.Text := url;
   try
-//    HTTP.HTTPMethod('GET', shortstring(urled.text));
-    jsonstr := IdHTTPmac30.Get(shortstring(urled.text));
-//    Memobody.Lines.LoadFromStream(HTTP.Document);
-//    if (trunc(now*24*3600) mod 2) = 0 then begin
-//      Memo2.Lines.Assign(HTTP.Headers);
-//      Memo2.Lines.insert(0,formatdatetime('hh:nn:ss:zzz',now));
-//    end;
-//    jsonstr := jsonstr + copy(memobody.Lines[memobody.Lines.Count - 1], 1, length(jsonstr) - 1);
+      if mac30_data='' then exit;
+    jsonstr := mac30_data;
+    Memobody.Lines.text :=jsonstr;
     rlist := tlkjsonlist.Create;
     jnull := tlkjsonnull.Create;
     Data := TlkJSON.ParseText(jsonstr) as TlkJSONobject;
@@ -647,7 +665,6 @@ begin
       memo1.Lines.Clear;
       memo1.Lines.add('parse error');
       memo1.Lines.add(jsonstr);
-      timer1.Enabled := true;
       exit;
     end;
     case Data.Field['ID'].SelfType of
@@ -673,19 +690,16 @@ begin
     t_vt := Data.field['VT'] as tlkjsonlist;
     for h := 0 to 93 do
     begin
-//      jnull := tlkjsonnull.Create;
       rlist.Add(tlkjsonnull.Create);
     end;
     offset := 0;
     h := 0;
     while (h < t_id.Count) do
     begin
-      //memo2.Lines.Add(IntToStr(h));
       id := (t_id.Child[h] as tlkjsonnumber).Value;
       g := (t_vc.Child[h] as tlkjsonnumber).Value;
       r[id] := '0';
       position := offset;
-//            rl.Add(IntToStr(id)+' : 0,');
       while (position < (offset + g)) do
       begin
         if ((t_vn.child[position] as tlkjsonstring).Value = 'VALUE') then
@@ -714,97 +728,37 @@ begin
             s := system.copy(s, 1, pointpos + 2);
           end;
           r[id] := s;
-//          memo2.Lines[memo2.Lines.Count - 1] := memo2.Lines[memo2.Lines.Count - 1] + ' = ' + s;
-//                 rl[rl.Count-1]:=inttostr(id)+' : '+s+',';
         end;
         inc(position);
       end;
       offset := offset + g;
       inc(h);
-//      memo2.Lines[memo2.Lines.Count - 1] := memo2.Lines[memo2.Lines.Count - 1] + ' fin';
     end;
     CurrentData := tlkjson.GenerateText(Data);
     Data.Free;
   finally
-    HTTP.Free;
-    http := nil;
-  end;
-  if ((now - prevUpdate) * 24 * 3600 < 10) then
-  begin
-    timer1.Enabled := true;
-    exit;
   end;
 
   if ((now - prevUpdate) * 24 * 3600 > 0) then
   begin
 
     prevUpdate := now;
-//    var k1t11 = toChart(r[28]);
-//    var k1t7 = toChart(r[26]);
     AddVarToRecord('time', '"' + formatdatetime('hh:nn:ss', now) + '"');
     AddVarToRecord('date', '"' + formatdatetime('dd:mm:yy', now) + '"');
-(*
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                        KGU-1                                                                      ///
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Îáîðîòû
-    AddVarToRecord('k1td1', r[45]);
-    AddVarToRecord('k1td2', r[46]);
-    AddVarToRecord('k1td3', r[47]);
-    AddVarToRecord('k1pg', r[51]);
-//Óðîâíè
-    AddVarToRecord('k1sbr', r[35]);
-    AddVarToRecord('k1vanna', r[36]);
-    AddVarToRecord('k1bo1', r[32]);
-    AddVarToRecord('k1bo2', r[33]);
-//Òåìïåðàòóðû
-    AddVarToRecord('k1t1', r[5]);
-    AddVarToRecord('k1t5', r[11]);
-    AddVarToRecord('k1t9', r[23]);
-    AddVarToRecord('k1t13', r[111]);
-
-    AddVarToRecord('k1t2', r[7]);
-    AddVarToRecord('k1t6', r[12]);
-    AddVarToRecord('k1t10', r[24]);
-
-    AddVarToRecord('k1t3', r[9]);
-    AddVarToRecord('k1t7', r[26]);
-    AddVarToRecord('k1t11', r[28]);
-
-    AddVarToRecord('k1t4', r[10]);
-    AddVarToRecord('k1t8', r[27]);
-    AddVarToRecord('k1t12', r[29]);
-
-//Òåìïåðàòóðû íà ÁÎ1 kgu 1
-    AddVarToRecord('k1t181', r[14]);
-    AddVarToRecord('k1t191', r[15]);
-    AddVarToRecord('k1t201', r[16]);
-    AddVarToRecord('k1t211', r[17]);
-//Òåìïåðàòóðû íà ÁÎ2 kgu 1
-    AddVarToRecord('k1t182', r[18]);
-    AddVarToRecord('k1t192', r[19]);
-    AddVarToRecord('k1t202', r[20]);
-    AddVarToRecord('k1t212', r[21]);
-
-    r1 := strToFloat(r[11]) - strtofloat(r[12]);
-    AddVarToRecord('k1dt5t6', format('%f', [r1]));
-    r1 := strToFloat(r[9]) - strtofloat(r[10]);
-    AddVarToRecord('k1dt3t4', format('%f', [r1]));
-*)
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-//                        KGU-1                                                                      ///
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Îáîðîòû
+//ÐžÐ±Ð¾Ñ€Ð¾Ñ‚Ñ‹
     r[45]:='NaN';
     r[46]:='NaN';
     r[47]:='NaN';
     r[51]:='NaN';
-//Óðîâíè
+//Ð£Ñ€Ð¾Ð²Ð½Ð¸
     r[43]:='NaN';
     r[36]:='NaN';
     r[32]:='NaN';
     r[33]:='NaN';
-//Òåìïåðàòóðû
+//Ð¢ÐµÐ¼Ð¿ÐµÑ€Ð°Ñ‚ÑƒÑ€Ñ‹
     r[5]:='NaN';
     r[11]:='NaN';
     r[23]:='NaN';
@@ -819,29 +773,29 @@ begin
     r[10]:='NaN';
     r[27]:='NaN';
     r[29]:='NaN';
-//Òåìïåðàòóðû íà ÁÎ1 kgu 1
+//Ð¢ÐµÐ¼Ð¿ÐµÑ€Ð°Ñ‚ÑƒÑ€Ñ‹ Ð½Ð° Ð‘Ðž1 kgu 1
     r[14]:='NaN';
     r[15]:='NaN';
     r[16]:='NaN';
     r[17]:='NaN';
-//Òåìïåðàòóðû íà ÁÎ2 kgu 1
+//Ð¢ÐµÐ¼Ð¿ÐµÑ€Ð°Ñ‚ÑƒÑ€Ñ‹ Ð½Ð° Ð‘Ðž2 kgu 1
     r[18]:='NaN';
     r[19]:='NaN';
     r[20]:='NaN';
     r[21]:='NaN';
 
-//Îáîðîòû
+//ÐžÐ±Ð¾Ñ€Ð¾Ñ‚Ñ‹
 
     AddVarToRecord('k1td1', r[45]);
     AddVarToRecord('k1td2', r[46]);
     AddVarToRecord('k1td3', r[47]);
     AddVarToRecord('k1pg', r[51]);
-//Óðîâíè
+//Ð£Ñ€Ð¾Ð²Ð½Ð¸
     AddVarToRecord('k1sbr', r[35]);
     AddVarToRecord('k1vanna', r[36]);
     AddVarToRecord('k1bo1', r[32]);
     AddVarToRecord('k1bo2', r[33]);
-//Òåìïåðàòóðû
+//Ð¢ÐµÐ¼Ð¿ÐµÑ€Ð°Ñ‚ÑƒÑ€Ñ‹
 
 
     AddVarToRecord('k1t1', r[5]);
@@ -862,12 +816,12 @@ begin
     AddVarToRecord('k1t8', r[27]);
     AddVarToRecord('k1t12', r[29]);
 
-//Òåìïåðàòóðû íà ÁÎ1 kgu 1
+//Ð¢ÐµÐ¼Ð¿ÐµÑ€Ð°Ñ‚ÑƒÑ€Ñ‹ Ð½Ð° Ð‘Ðž1 kgu 1
     AddVarToRecord('k1t181', r[14]);
     AddVarToRecord('k1t191', r[15]);
     AddVarToRecord('k1t201', r[16]);
     AddVarToRecord('k1t211', r[17]);
-//Òåìïåðàòóðû íà ÁÎ2 kgu 1
+//Ð¢ÐµÐ¼Ð¿ÐµÑ€Ð°Ñ‚ÑƒÑ€Ñ‹ Ð½Ð° Ð‘Ðž2 kgu 1
 
     AddVarToRecord('k1t182', r[18]);
     AddVarToRecord('k1t192', r[19]);
@@ -883,17 +837,17 @@ begin
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                        KGU-2                                                                      ///
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Îáîðîòû
+//ÐžÐ±Ð¾Ñ€Ð¾Ñ‚Ñ‹
     AddVarToRecord('k2td1', r[95]);
     AddVarToRecord('k2td2', r[96]);
     AddVarToRecord('k2td3', r[97]);
     AddVarToRecord('k2pg', r[101]);
-//Óðîâíè
+//Ð£Ñ€Ð¾Ð²Ð½Ð¸
     AddVarToRecord('k2sbr', r[85]);
     AddVarToRecord('k2vanna', r[86]);
     AddVarToRecord('k2bo1', r[82]);
     AddVarToRecord('k2bo2', r[83]);
-//Òåìïåðàòóðû
+//Ð¢ÐµÐ¼Ð¿ÐµÑ€Ð°Ñ‚ÑƒÑ€Ñ‹
     AddVarToRecord('k2t1', r[55]);
     AddVarToRecord('k2t5', r[61]);
     AddVarToRecord('k2t9', r[73]);
@@ -911,12 +865,12 @@ begin
     AddVarToRecord('k2t8', r[77]);
     AddVarToRecord('k2t12', r[79]);
 
-//Òåìïåðàòóðû íà ÁÎ1 kgu 2
+//Ð¢ÐµÐ¼Ð¿ÐµÑ€Ð°Ñ‚ÑƒÑ€Ñ‹ Ð½Ð° Ð‘Ðž1 kgu 2
     AddVarToRecord('k2t181', r[64]);
     AddVarToRecord('k2t191', r[65]);
     AddVarToRecord('k2t201', r[66]);
     AddVarToRecord('k2t211', r[67]);
-//Òåìïåðàòóðû íà ÁÎ2 kgu 2
+//Ð¢ÐµÐ¼Ð¿ÐµÑ€Ð°Ñ‚ÑƒÑ€Ñ‹ Ð½Ð° Ð‘Ðž2 kgu 2
     AddVarToRecord('k2t182', r[68]);
     AddVarToRecord('k2t192', r[69]);
     AddVarToRecord('k2t202', r[70]);
@@ -929,30 +883,37 @@ begin
     r1 := strToFloat(r[59]) - strtofloat(r[60]);
     AddVarToRecord('k2dt3t4', format('%f', [r1]));
     resrecord :=     resrecord+insat_data;
-
-
-
-      //amchart process
+    if length(booster_data)>1 then       resrecord :=     resrecord+','+booster_data;
     resrecord := resrecord + ' }';
-    str1 := resrecord;
+      memo2.Lines.Text :=resrecord;
 
-//    writetimelog('## Update History = ' + resrecord);
+    str1 := resrecord;
      inc(linenum);
-    if (linenum mod 5) = 0 then begin
-        histjson.Add(resrecord);
+    writeCurrentFiles();
+
+    if (linenum mod 5 )=0  then begin
+       if length(resrecord)>0 then
+        if length(histtext)>0
+          then histtext:=histtext+',';
+        histtext:=histtext+resrecord ;
         JSON_last_data :=resrecord;
-        while histjson.Count > 5 * 3600/10 do
-          histjson.Delete(0);
-        textfromJson := GenerateOutText(histjson);
+        i2 :=1;
+        i1 :=(length(histtext)-i2) div length(resrecord);
+        while ((length(histtext)-i2) div length(resrecord)) > (24 * 3600/15) do begin
+          i2 :=pos('}',histtext,i2)+2;
+          i1 :=(length(histtext)-i2) div length(resrecord);
+
+        end;
+        if i2>1 then histtext :=system.copy(histtext,i2,999999999);
+
+
+        textfromJson := GenerateOutText(histtext);
+        WriteHistFile();
     end;
-      timer1.Enabled := true;
 
 
 
   end;
-//  rl.Free;
-  timer1.Enabled := true;
-writeFiles;
 end;
 
 procedure THTTPSRVForm.SpeedButton2Click(Sender: TObject);
@@ -965,7 +926,7 @@ var
   jcount: integer;
   jo: tlkjsonobject;
   jb: tlkjsonbase;
-  str: string;
+  str: ansistring;
 
 procedure THTTPSRVForm.ApplicationEvents1Minimize(Sender: TObject);
 begin
@@ -979,14 +940,14 @@ end;
 
 //procedure THTTPSRVForm.MinimizeClick(Sender: TObject);
 //begin
-//  ShowWindow(Application.Handle, SW_hide); // Âîññòàíàâëèâàåì êíîïêó ïðîãðàììû
-//  ShowWindow(Handle, SW_hide); // Âîññòàíàâëèâàåì îêíî ïðîãðàììû
+//  ShowWindow(Application.Handle, SW_hide); // Ð’Ð¾ÑÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ ÐºÐ½Ð¾Ð¿ÐºÑƒ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ñ‹
+//  ShowWindow(Handle, SW_hide); // Ð’Ð¾ÑÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ Ð¾ÐºÐ½Ð¾ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ñ‹
 //  application.Minimize;
 //end;
 
 procedure THTTPSRVForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-//  ShowWindow(Application.Handle, SW_hide); // ïðÿ÷åì  êíîïêó ïðîãðàììû
+//  ShowWindow(Application.Handle, SW_hide); // Ð¿Ñ€ÑÑ‡ÐµÐ¼  ÐºÐ½Ð¾Ð¿ÐºÑƒ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ñ‹
   ShowWindow(Handle, SW_hide);
   Action := caNone;
 end;
@@ -997,8 +958,8 @@ var
 
 procedure THTTPSRVForm.Restore1Click(Sender: TObject);
 begin
-//  ShowWindow(Application.Handle, SW_SHOW); // Âîññòàíàâëèâàåì êíîïêó ïðîãðàììû
-  ShowWindow(Handle, SW_SHOW); // Âîññòàíàâëèâàåì îêíî ïðîãðàììû
+//  ShowWindow(Application.Handle, SW_SHOW); // Ð’Ð¾ÑÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ ÐºÐ½Ð¾Ð¿ÐºÑƒ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ñ‹
+  ShowWindow(Handle, SW_SHOW); // Ð’Ð¾ÑÑÑ‚Ð°Ð½Ð°Ð²Ð»Ð¸Ð²Ð°ÐµÐ¼ Ð¾ÐºÐ½Ð¾ Ð¿Ñ€Ð¾Ð³Ñ€Ð°Ð¼Ð¼Ñ‹
 
 end;
 
@@ -1008,7 +969,7 @@ var
 begin
   FullProgPath := PansiChar(Application.ExeName);
    // ShowWindow(Form1.handle,SW_HIDE);
-  WinExec(FullProgPath, SW_SHOW); // Or better use the CreateProcess function
+  WinExec_(Application.ExeName, SW_SHOW); // Or better use the CreateProcess function
   Application.Terminate; // or: Close;
   exit;
 end;
@@ -1016,7 +977,7 @@ end;
 var
   confjson: tstringlist;
   i1, i2, i3, i4, i5, i6: integer;
-  str1, str2: string;
+  str1, str2: ansistring;
 
 var
   // ????????? ?? ??????? ?????? ??????????
@@ -1043,57 +1004,80 @@ var
   wret: word;
   kgunum, chnum: integer;
 
-procedure THTTPSRVForm.tmr1Timer(Sender: TObject);
+procedure THTTPSRVForm.tangoTimerTimer(Sender: TObject);
+var
+i : integer;
+resstr, str1, jsonstr  : ansistring;
+tangourl :string;
+
+tango_req:tidhttp;
 begin
-   if (now - LastUpdate) * 24 * 3600 > 160 then
-  begin
-    writetimelog('#### restart application/ Reason: update timer inactive for 160 sec  ############################################');
 
-    FullProgPath := PansiChar(Application.ExeName);
-    need_terminate := true;
-   // ShowWindow(Form1.handle,SW_HIDE);
-    WinExec(FullProgPath, SW_SHOW); // Or better use the CreateProcess function
-    Application.Terminate; // or: Close;
-    exit;
+  tangotimer.Enabled :=false;
+  StatusBar1.Panels[2].Text :=formatdatetime('tango HH:NN:SS>',now);
+  resstr :='';
+    try
+
+    tangourl:= 'http://tangoapps1.jinr.ru/tango/rest/rc4/devices/booster/thermo/cgu/attributes/value/plain?wildcard=L*&wildcard=R*';
+      tango_req:=tidhttp.Create(self);
+      jsonstr := tango_req.get(tangourl);
+      jsonstr := AnsiReplaceStr(jsonstr,'{','');
+      jsonstr  := AnsiReplaceStr(jsonstr,'}','');
+      jsonstr  := AnsiReplaceStr(jsonstr,#10,'');
+
+      booster_data := jsonstr;
+      StatusBar1.Panels[2].Text :=formatdatetime('tango HH:NN:SS<',now);
+        StatusBar1.Panels[3].text :=str1;
+
+    except
+                On E: EIdException do
+                  StatusBar1.Panels[2].Text :=formatdatetime('tango HH:NN:SS err',now);
   end;
-
+  tangotimer.Enabled :=true;
+  tango_req.Free;
 end;
 
-procedure THTTPSRVForm.Timer2Timer(Sender: TObject);
+procedure THTTPSRVForm.restart_apptmrTimer(Sender: TObject);
+var
+  FullProgPath: PansiChar;
+begin
+  FullProgPath := PansiChar(Application.ExeName);
+  /// ShowWindow(Form1.handle,SW_HIDE);
+  WinExec_((Application.ExeName), SW_SHOW); // Or better use the CreateProcess function
+
+  Application.Terminate; // or: Close;
+  exit;
+end;
+
+procedure THTTPSRVForm.insat_timerTimer(Sender: TObject);
 var
 HTTP : THTTPSend;
 i : integer;
-str1, jsonstr : string;
+str1, jsonstr : ansistring;
+insat_req:tidhttp;
 begin
-  timer2.Enabled := false;
-  insat_data :='';
+  insat_timer.Enabled :=false;
+  StatusBar1.Panels[1].Text :=formatdatetime('Insat HH:NN:SS>',now);
     try
-      HTTP := THTTPSend.Create;
-      memo2.Lines.Clear;
-      HTTP.HTTPMethod('GET', urlInsat);
-      Memo2.Lines.LoadFromStream(HTTP.Document);
-      jsonstr := memo2.Lines.text;
+    begin
+      insat_req:=tidhttp.Create(self);
+      jsonstr := insat_req.get(urlInsat);
       jsonstr := ansiReplacestr(jsonstr,'}','');
       insat_data :=ansiReplacestr(jsonstr,'{','');
+      StatusBar1.Panels[1].Text :=formatdatetime('Insat HH:NN:SS<',now);
+    end
+    except
+                On E: EIdException do
+                  StatusBar1.Panels[1].Text :=formatdatetime('insat HH:NN:SS err',now);
 
-
-//      for i := 0 to memo2.Lines.Count - 2 do
-//      begin
-//        jsonstr := jsonstr + memo2.Lines[i];
-//      end;
-//      str1 :=system.copy(memo2.Lines[memo2.Lines.Count - 1], 1, length(jsonstr) - 1);
-//      jsonstr := jsonstr + str1;
-//      memo2.lines.add(jsonstr);
-//      insat_data := system.copy(jsonstr,2,length(jsonstr) - 2);
-  finally
-    HTTP.Free;
-    http := nil;
   end;
-  timer2.Enabled := true;
-
-
+  insat_timer.Enabled :=true;
+  insat_req.Free;
 end;
-
+var
+  l1 : integer;
+  ffhist:tfilestream;
+  sttime:double;
 initialization
   startTime := now;
   LastUpdate := now;
@@ -1103,16 +1087,20 @@ initialization
   confjson := tstringlist.Create;
   histJson := tstringlist.Create;
   url := 'http://159.93.126.233:8080/proxy.cgi?id=6';
+  urlInsat := 'http://159.93.40.150:8010/data';
   urlInsat := 'http://10.0.10.103:8010/data';
    //  urled.Text:='http://10.0.10.30:8080/proxy.cgi?id=6';
   if fileexists(extractfilepath(application.ExeName) + '\config.json') then
   begin
     confjson.LoadFromFile(extractfilepath(application.ExeName) + '\config.json');
-    jconf := tlkjson.parsetext(confjson[0]) as tlkjsonobject;
+    jconf := tlkjson.parsetext(confjson.Text) as tlkjsonobject;
     if jconf <> nil then
     begin
       if jconf.field['url'] <> nil then
         url := (jconf.field['url'] as tlkjsonstring).Value;
+      if jconf.field['portnum'] <> nil then
+        portnum := StrToInt((jconf.field['portnum'] as tlkjsonstring).Value);
+
       if jconf.field['kgu1_counter_com_number'] <> nil then
         kgu_counter_com_number[0] := char(strtoint((jconf.field['kgu1_counter_com_number'] as tlkjsonstring).Value));
       if jconf.field['kgu2_counter_com_number'] <> nil then
@@ -1123,32 +1111,45 @@ initialization
 
   if fileexists(extractfilepath(application.ExeName) + '\history.json') then
   begin
+//    ffhistL- tfilestream.Create();
     histjson.LoadFromFile(extractfilepath(application.ExeName) + '\history.json');
     textfromJson := histjson.GetText;
-    str1 := textfromJson;
-    histJson.Clear;
-    i1 := 0;
-    while (length(str1) > 2) do
-    begin
-      i2 := pos('{', str1);
-      i3 := pos('}', str1);
-      if ((i2 > 0) and (i3 > 0) and (i2 < i3)) then
-      begin
-        str2 := system.copy(str1, i2, i3 - i2 + 1);
-        str1 := system.copy(str1, i3 + 1, length(str1));
-        histJson.add(str2);
+    i2 :=length(textfromJson);
+    while (i2>1) and (textfromJson[i2]<>'}') do dec(i2);
+    histtext := system.Copy(textfromJson,2,i2-1);
+    i1 :=length(textfromJson);
+    i2 :=length(histtext);
+//    str1 :=system.Copy(histtext,i2-10,99999999999);
+//    i3:=0;
 
-      end
-      else
-        break;
-
-    end;
-    textfromJson := GenerateOutText(histjson);
+//    str1 := textfromJson;
+//    histJson.Clear;
+//    i1 := 1;
+//    sttime:=now;
+//    while (length(str1) > 2) do
+//    begin
+//
+//      i2 := pos('{', str1,i1);
+//      i3 := pos('}', str1,i1);
+//      if ((i2 > 0) and (i3 > 0) and (i2 < i3)) then
+//      begin
+//        str2 := system.copy(str1, i2, i3 - i2 + 1);
+//        i1 := i3+1;
+//        histJson.add(str2);
+//
+//      end
+//      else
+//        break;
+//
+//    end;
+//    textfromJson := GenerateOutText(histjson);
   end
   else
   begin
-    textfromJson := '[]';
+    textfromJson := '';
+    histtext :='';
   end;
+  writetimelog('loadhist time '+floattostr((now-sttime)*1000));
   LastIncomeConnection := now;
 
 finalization

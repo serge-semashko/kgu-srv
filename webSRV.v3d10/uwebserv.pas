@@ -114,6 +114,7 @@ var
   subobj: tlkjsonobject;
   LastUpdate: double = 0;
    hexmap : array[0..15] of ansichar = ('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F');
+   zipdata :ansistring;
 //*
 
 implementation
@@ -603,16 +604,17 @@ begin
       writeWebFiles('d:\www\mob\last_data30.dat ', mac30_data);
       writeWebFiles('d:\www\kguv3\last_data30.dat ',mac30_data);
       writeWebFiles('d:\www\kgu4k\last_data30.dat ',mac30_data);
+      writeWebFiles('d:\www\test\last_data30.dat ',mac30_data);
 
-     writeWebFiles('d:\www\mob\JSON_last_data.dat', resrecord);
       writeWebFiles('d:\www\JSON_last_data.dat', resrecord);
+      writeWebFiles('d:\www\mob\JSON_last_data.dat', resrecord);
       writeWebFiles('d:\www\kguv3\JSON_last_data.dat', resrecord);
       writeWebFiles('d:\www\kgu4k\JSON_last_data.dat', resrecord);
+      writeWebFiles('d:\www\test\JSON_last_data.dat', resrecord);
 
 end;
 procedure WriteHistFile();
-var
-   zipdata :ansistring;
+
 begin
       writewebfiles(extractfilepath(application.ExeName) + '\history.json',textfromjson);
       Backup_history := extractfilepath(application.ExeName) + '\history.' + formatDateTime('yyyy__mm_dd_hh', now);
@@ -622,7 +624,7 @@ begin
       writeWebFiles('d:\www\mob\hist.zip', zipdata);
       writeWebFiles('d:\www\kguv3\hist.zip', zipdata);
       writeWebFiles('d:\www\kgu4k\hist.zip', zipdata);
-
+      writeWebFiles('d:\www\test\hist.zip', zipdata);
 end;
 
 
