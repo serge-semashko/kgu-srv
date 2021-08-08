@@ -220,16 +220,19 @@ object HTTPSRVForm: THTTPSRVForm
     Top = 128
   end
   object writewebfilesTimer: TTimer
+    Interval = 4000
     OnTimer = SpeedButton1Click
     Left = 368
     Top = 128
   end
   object insat_timer: TTimer
+    Interval = 3000
     OnTimer = insat_timerTimer
     Left = 200
     Top = 120
   end
   object mac30Timer: TTimer
+    Interval = 3000
     OnTimer = mac30TimerTimer
     Left = 144
     Top = 136

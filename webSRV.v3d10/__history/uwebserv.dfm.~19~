@@ -124,8 +124,14 @@ object HTTPSRVForm: THTTPSRVForm
       Width = 1026
       Height = 108
       Align = alBottom
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
       Lines.Strings = (
         'Memo1')
+      ParentFont = False
       TabOrder = 5
     end
   end
@@ -137,7 +143,7 @@ object HTTPSRVForm: THTTPSRVForm
     Align = alTop
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -15
+    Font.Height = -11
     Font.Name = 'MS Sans Serif'
     Font.Style = []
     ParentFont = False
@@ -147,13 +153,41 @@ object HTTPSRVForm: THTTPSRVForm
     Left = 0
     Top = 486
     Width = 1028
-    Height = 263
+    Height = 244
     Align = alClient
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'MS Sans Serif'
+    Font.Style = []
     Lines.Strings = (
       'Memobody')
+    ParentFont = False
     TabOrder = 2
-    ExplicitLeft = -1
-    ExplicitTop = 492
+  end
+  object StatusBar1: TStatusBar
+    Left = 0
+    Top = 730
+    Width = 1028
+    Height = 19
+    Panels = <
+      item
+        Bevel = pbRaised
+        Text = '1'
+        Width = 300
+      end
+      item
+        Text = '2'
+        Width = 300
+      end
+      item
+        Text = '3'
+        Width = 300
+      end
+      item
+        Text = '4'
+        Width = 300
+      end>
   end
   object ApplicationEvents1: TApplicationEvents
     OnMinimize = ApplicationEvents1Minimize
@@ -179,39 +213,31 @@ object HTTPSRVForm: THTTPSRVForm
       OnClick = Restart1Click
     end
   end
-  object tmr1: TTimer
-    Interval = 60000
-    OnTimer = tmr1Timer
-    Left = 512
+  object restart_apptmr: TTimer
+    Interval = 6000000
+    OnTimer = restart_apptmrTimer
+    Left = 540
     Top = 128
   end
-  object Timer1: TTimer
-    Enabled = False
+  object writewebfilesTimer: TTimer
     OnTimer = SpeedButton1Click
     Left = 368
     Top = 128
   end
-  object Timer2: TTimer
-    Interval = 800
-    OnTimer = Timer2Timer
+  object insat_timer: TTimer
+    OnTimer = insat_timerTimer
     Left = 200
     Top = 120
   end
-  object IdHTTPmac30: TIdHTTP
-    AllowCookies = True
-    ProxyParams.BasicAuthentication = False
-    ProxyParams.ProxyPort = 0
-    Request.ContentLength = -1
-    Request.ContentRangeEnd = -1
-    Request.ContentRangeStart = -1
-    Request.ContentRangeInstanceLength = -1
-    Request.Accept = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-    Request.BasicAuthentication = False
-    Request.UserAgent = 'Mozilla/3.0 (compatible; Indy Library)'
-    Request.Ranges.Units = 'bytes'
-    Request.Ranges = <>
-    HTTPOptions = [hoForceEncodeParams]
-    Left = 472
-    Top = 104
+  object mac30Timer: TTimer
+    OnTimer = mac30TimerTimer
+    Left = 144
+    Top = 136
+  end
+  object tangoTimer: TTimer
+    Interval = 2000
+    OnTimer = tangoTimerTimer
+    Left = 264
+    Top = 200
   end
 end

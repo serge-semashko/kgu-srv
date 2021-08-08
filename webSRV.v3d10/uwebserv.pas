@@ -651,7 +651,7 @@ begin
   try
       if mac30_data='' then exit;
     jsonstr := mac30_data;
-    Memobody.Lines.text :=jsonstr;
+//    Memobody.Lines.text :=jsonstr;
     rlist := tlkjsonlist.Create;
     jnull := tlkjsonnull.Create;
     Data := TlkJSON.ParseText(jsonstr) as TlkJSONobject;
@@ -880,7 +880,7 @@ begin
     resrecord :=     resrecord+insat_data;
     if length(booster_data)>1 then       resrecord :=     resrecord+','+booster_data;
     resrecord := resrecord + ' }';
-      memo2.Lines.Text :=resrecord;
+      //memo2.Lines.Text :=resrecord;
 
     str1 := resrecord;
      inc(linenum);
